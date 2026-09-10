@@ -13,6 +13,10 @@ ONLINE = "Online"
 # Ключ, по которому в ответе Tasmota опознаётся именно наша команда.
 # Без этой проверки любой другой RESULT (например ответ на Status) дал бы
 # ложное подтверждение отправки.
+#
+# Одного ключа мало: отказ приходит под тем же ключом. Успех —
+# {"IRHVAC":{"Vendor":...}}, отказ — {"IRHVAC":"Wrong Vendor (...)"}.
+# Различаются они только типом значения.
 ACK_KEY = "IRHVAC"
 
 
@@ -59,6 +63,8 @@ class MqttWrapper:
         self.board_online: bool | None = None
         """None — LWT ещё не приходил, состояние платы неизвестно."""
         self.last_error: str | None = None
+        self._rejected: str | None = None
+        """Текст отказа Tasmota на последнюю команду, если она её отвергла."""
 
     @property
     def is_connected(self) -> bool:
@@ -136,8 +142,18 @@ class MqttWrapper:
             logger.debug("В %s пришёл посторонний ответ: %r", topic, payload)
             return
 
-        logger.debug("Подтверждение отправки: %r", payload)
         waiter = self._ack_waiter
+        answer = data[ACK_KEY]
+        if not isinstance(answer, dict):
+            # Плата разобрала JSON, но команду отвергла — ИК не уходил.
+            # Будим ждущего сразу, чтобы не ждать таймаута впустую.
+            logger.error("Плата отвергла команду: %s", answer)
+            self._rejected = str(answer)
+            if waiter is not None and not waiter.done():
+                waiter.set_result(False)
+            return
+
+        logger.debug("Подтверждение отправки: %r", payload)
         if waiter is not None and not waiter.done():
             waiter.set_result(True)
 
@@ -157,9 +173,10 @@ class MqttWrapper:
                 return False
 
             body = dump_payload(payload)
+            self._rejected = None
 
             if not await self._publish_once(body):
-                self.last_error = "no_ack"
+                self.last_error = "rejected" if self._rejected else "no_ack"
                 return False
 
             await asyncio.sleep(self._repeat_delay)

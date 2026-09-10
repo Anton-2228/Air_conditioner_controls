@@ -7,6 +7,7 @@ from aiogram.types import CallbackQuery, Message
 from air_conditioner import MODE_COOL, MODE_HEAT, POWER_ON, AcState, AirConditioner, CommandResult
 from datafiles import (
     BOARD_OFFLINE_MESSAGE,
+    COMMAND_REJECTED_MESSAGE,
     LIMIT_REACHED_MESSAGE,
     MENU_MESSAGE,
     SAVED_ONLY_MESSAGE,
@@ -117,7 +118,11 @@ async def report_result(
     air_conditioner: AirConditioner,
 ) -> None:
     """Единая реакция на результат команды: приписка + перерисовка панели."""
-    if not result.ok:
+    # Отказ платы — это неверные настройки, а не пропавшая связь:
+    # «плата недоступна» здесь отправило бы искать не там.
+    if not result.ok and result.error == "rejected":
+        note = COMMAND_REJECTED_MESSAGE
+    elif not result.ok:
         note = BOARD_OFFLINE_MESSAGE
     elif result.unchanged:
         note = LIMIT_REACHED_MESSAGE.format(limit=result.state.temp)

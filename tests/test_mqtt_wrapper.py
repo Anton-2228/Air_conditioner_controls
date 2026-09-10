@@ -170,6 +170,45 @@ async def test_foreign_result_is_not_an_ack(fake_client):
     await stop(task)
 
 
+async def test_wrong_vendor_is_a_rejection_not_an_ack(fake_client):
+    """На неверный вендор Tasmota отвечает тем же ключом IRHVAC, но строкой.
+
+    Раньше это засчитывалось как подтверждение: бот рапортовал об успехе
+    и сохранял состояние, хотя ИК не уходил вовсе.
+    """
+    wrapper = make_wrapper()
+    task = await start(wrapper)
+    client = fake_client.instances[0]
+    client.ack_body = '{"IRHVAC":"Wrong Vendor (LG|COOLIX|GREE|ELECTRA_AC)"}'
+    await client.emit(wrapper.lwt_topic, "Online")
+    await asyncio.sleep(0.02)
+
+    loop = asyncio.get_running_loop()
+    started = loop.time()
+    assert await wrapper.send_hvac(PAYLOAD) is False
+    assert wrapper.last_error == "rejected"
+    assert len(client.published) == 1  # после отказа дубль не шлём
+    # Отказ приходит сразу — ждать таймаут подтверждения незачем
+    assert loop.time() - started < 0.2
+    await stop(task)
+
+
+async def test_rejection_does_not_leak_into_next_command(fake_client):
+    wrapper = make_wrapper()
+    task = await start(wrapper)
+    client = fake_client.instances[0]
+    await client.emit(wrapper.lwt_topic, "Online")
+    await asyncio.sleep(0.02)
+
+    client.ack_body = '{"IRHVAC":"Wrong Vendor"}'
+    assert await wrapper.send_hvac(PAYLOAD) is False
+
+    client.ack_body = '{"IRHVAC":{"Vendor":"ELECTRA_AC","Power":"On"}}'
+    assert await wrapper.send_hvac(PAYLOAD) is True
+    assert wrapper.last_error is None
+    await stop(task)
+
+
 async def test_broken_json_in_stat_does_not_crash(fake_client):
     wrapper = make_wrapper()
     task = await start(wrapper)
