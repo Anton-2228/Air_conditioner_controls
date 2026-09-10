@@ -54,7 +54,13 @@ async def on_error(event: ErrorEvent) -> bool:
 
 
 async def start_polling() -> None:
-    await bot.set_my_commands(commands=COMMANDS)
+    # Меню команд — удобство, а не необходимость. Если Telegram сейчас
+    # недоступен, бот не должен из-за этого падать: polling сам умеет
+    # переживать сетевые ошибки и переподключаться.
+    try:
+        await bot.set_my_commands(commands=COMMANDS)
+    except TelegramAPIError as exc:
+        logger.warning("Не удалось выставить меню команд: %s", exc)
     dp.include_routers(router)
     logger.info("Запускаю long polling")
     await dp.start_polling(bot)

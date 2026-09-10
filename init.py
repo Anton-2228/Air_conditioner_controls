@@ -3,6 +3,7 @@ from pathlib import Path
 
 from aiogram import Bot, Dispatcher, Router
 from aiogram.client.default import DefaultBotProperties
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.types import BotCommand
@@ -37,9 +38,10 @@ MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "ac_bot")
 TASMOTA_TOPIC = os.getenv("TASMOTA_TOPIC", "tasmota_A3CA74")
 MQTT_ACK_TIMEOUT = float(os.getenv("MQTT_ACK_TIMEOUT", "5.0"))
-MQTT_REPEAT_DELAY = float(os.getenv("MQTT_REPEAT_DELAY", "1.0"))
+MQTT_REPEAT_DELAY = float(os.getenv("MQTT_REPEAT_DELAY", "0.3"))
 MQTT_RECONNECT_DELAY = float(os.getenv("MQTT_RECONNECT_DELAY", "5.0"))
 STATE_FILE_PATH = Path(os.getenv("STATE_FILE_PATH", "data/state.json"))
+TELEGRAM_PROXY = os.getenv("TELEGRAM_PROXY", "").strip()
 
 # Протокол кондиционера. Меняется при переезде на другой кондиционер:
 # другой пульт — другой вендор, иногда другой диапазон температур.
@@ -51,8 +53,11 @@ AC_PROTOCOL = AcProtocol(
     send_light=os.getenv("AC_SEND_LIGHT", "1") not in ("0", "false", "False"),
 )
 
+# С некоторых серверов api.telegram.org недоступен напрямую — тогда
+# запросы к Bot API пускаем через прокси. Пустое значение — напрямую.
 bot = Bot(
     token=API_TOKEN,
+    session=AiohttpSession(proxy=TELEGRAM_PROXY) if TELEGRAM_PROXY else None,
     default=DefaultBotProperties(parse_mode=ParseMode.HTML),
 )
 storage = MemoryStorage()
