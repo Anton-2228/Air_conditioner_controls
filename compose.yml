@@ -4,8 +4,10 @@ services:
     container_name: ac_mosquitto
     restart: unless-stopped
     ports:
-      # Наружу: плата стоит дома и подключается к брокеру через интернет
-      - "1883:1883"
+      # Наружу: плата стоит дома и подключается к брокеру через интернет.
+      # Внешний порт настраивается: за NAT хостера доступен только выданный
+      # диапазон, а внутри контейнера брокер всегда слушает 1883.
+      - "${MQTT_PUBLIC_PORT:-1883}:1883"
     volumes:
       - ./mosquitto/config:/mosquitto/config
       - mosquitto_data:/mosquitto/data
