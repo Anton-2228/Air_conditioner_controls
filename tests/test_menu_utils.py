@@ -5,7 +5,8 @@ from aiogram.types import CallbackQuery
 from air_conditioner import AcState, CommandResult
 from commands.utils.keyboards import (
     CALLBACK_MODE_COOL,
-    CALLBACK_POWER_TOGGLE,
+    CALLBACK_POWER_OFF,
+    CALLBACK_POWER_ON,
     CALLBACK_TEMP_DOWN,
     CALLBACK_TEMP_UP,
     build_menu_keyboard,
@@ -59,12 +60,24 @@ def test_notes_are_formattable():
     assert SAVED_ONLY_MESSAGE  # не пустой
 
 
-def test_keyboard_toggles_power_label():
-    off = build_menu_keyboard(AcState(power="Off"))
-    on = build_menu_keyboard(AcState(power="On"))
-    assert "Включить" in off.inline_keyboard[0][0].text
-    assert "Выключить" in on.inline_keyboard[0][0].text
-    assert off.inline_keyboard[0][0].callback_data == CALLBACK_POWER_TOGGLE
+def test_keyboard_has_separate_power_buttons():
+    """Две кнопки при любом состоянии, а не тумблер с меняющейся подписью."""
+    for power in ("Off", "On"):
+        turn_on, turn_off = build_menu_keyboard(AcState(power=power)).inline_keyboard[0]
+        assert turn_on.callback_data == CALLBACK_POWER_ON
+        assert turn_off.callback_data == CALLBACK_POWER_OFF
+        assert "Включить" in turn_on.text
+        assert "Выключить" in turn_off.text
+
+
+def test_keyboard_marks_current_power_state():
+    turn_on, turn_off = build_menu_keyboard(AcState(power="On")).inline_keyboard[0]
+    assert "✅" in turn_on.text
+    assert "✅" not in turn_off.text
+
+    turn_on, turn_off = build_menu_keyboard(AcState(power="Off")).inline_keyboard[0]
+    assert "✅" in turn_off.text
+    assert "✅" not in turn_on.text
 
 
 def test_keyboard_has_arrows_around_value():

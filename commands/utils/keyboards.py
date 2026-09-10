@@ -1,14 +1,20 @@
 from aiogram.types import InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
-from air_conditioner import MODE_COOL, MODE_HEAT, POWER_OFF, AcState
+from air_conditioner import MODE_COOL, MODE_HEAT, POWER_OFF, POWER_ON, AcState
 
-CALLBACK_POWER_TOGGLE = "ac_power_toggle"
+CALLBACK_POWER_ON = "ac_power_on"
+CALLBACK_POWER_OFF = "ac_power_off"
 CALLBACK_MODE_COOL = "ac_mode_cool"
 CALLBACK_MODE_HEAT = "ac_mode_heat"
 CALLBACK_TEMP_UP = "ac_temp_up"
 CALLBACK_TEMP_DOWN = "ac_temp_down"
 CALLBACK_NOOP = "ac_noop"
+
+POWER_BY_CALLBACK = {
+    CALLBACK_POWER_ON: POWER_ON,
+    CALLBACK_POWER_OFF: POWER_OFF,
+}
 
 MODE_BY_CALLBACK = {
     CALLBACK_MODE_COOL: MODE_COOL,
@@ -21,19 +27,30 @@ TEMP_DELTA_BY_CALLBACK = {
 }
 
 
+def _mark(active: bool, text: str) -> str:
+    return ("✅ " if active else "") + text
+
+
 def build_menu_keyboard(state: AcState) -> InlineKeyboardMarkup:
-    """Панель целиком: тумблер питания, два режима, стрелки температуры."""
+    """Панель целиком: включение и выключение, два режима, стрелки температуры."""
     builder = InlineKeyboardBuilder()
+    # Две кнопки вместо тумблера: каждая шлёт своё состояние, не глядя на то,
+    # что бот думает о кондиционере. Если его выключили пультом, «Выключить»
+    # всё равно сработает с первого нажатия.
     builder.button(
-        text="🟢 Включить" if state.power == POWER_OFF else "🔴 Выключить",
-        callback_data=CALLBACK_POWER_TOGGLE,
+        text=_mark(state.power == POWER_ON, "🟢 Включить"),
+        callback_data=CALLBACK_POWER_ON,
     )
     builder.button(
-        text=("✅ " if state.mode == MODE_COOL else "") + "❄️ Охлаждение",
+        text=_mark(state.power == POWER_OFF, "🔴 Выключить"),
+        callback_data=CALLBACK_POWER_OFF,
+    )
+    builder.button(
+        text=_mark(state.mode == MODE_COOL, "❄️ Охлаждение"),
         callback_data=CALLBACK_MODE_COOL,
     )
     builder.button(
-        text=("✅ " if state.mode == MODE_HEAT else "") + "🔥 Нагрев",
+        text=_mark(state.mode == MODE_HEAT, "🔥 Нагрев"),
         callback_data=CALLBACK_MODE_HEAT,
     )
     builder.button(text="🔽", callback_data=CALLBACK_TEMP_DOWN)
@@ -41,5 +58,5 @@ def build_menu_keyboard(state: AcState) -> InlineKeyboardMarkup:
     # поэтому у неё отдельный колбэк, который ничего не делает.
     builder.button(text=f"{state.temp}°C", callback_data=CALLBACK_NOOP)
     builder.button(text="🔼", callback_data=CALLBACK_TEMP_UP)
-    builder.adjust(1, 2, 3)
+    builder.adjust(2, 2, 3)
     return builder.as_markup()

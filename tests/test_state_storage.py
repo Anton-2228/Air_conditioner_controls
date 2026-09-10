@@ -88,7 +88,7 @@ def test_no_temp_files_left_behind(storage):
 async def test_concurrent_updates_are_serialized(storage):
     mqtt = FakeMqtt()
     ac = AirConditioner(storage, mqtt)
-    await ac.toggle_power(1)  # включаем, чтобы ИК действительно уходил
+    await ac.set_power("On", 1)  # включаем, чтобы ИК действительно уходил
 
     temps = list(range(17, 31))
     await asyncio.gather(*[ac.set_temperature(t, 1) for t in temps])
@@ -96,14 +96,14 @@ async def test_concurrent_updates_are_serialized(storage):
     assert ac.get_state().temp in temps
     on_disk = json.loads(storage.path.read_text(encoding="utf-8"))
     assert on_disk["temp"] == ac.get_state().temp
-    # toggle_power + по одной публикации на каждую температуру
+    # включение + по одной публикации на каждую температуру
     assert len(mqtt.sent) == len(temps) + 1
 
 
 async def test_failed_send_leaves_state_untouched(storage):
     ok_mqtt = FakeMqtt()
     ac = AirConditioner(storage, ok_mqtt)
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
     before = ac.get_state()
     before_on_disk = storage.path.read_text(encoding="utf-8")
 
@@ -135,7 +135,7 @@ async def test_saved_mode_is_applied_on_power_on(storage):
     await ac.set_mode("Heat", 1)
     await ac.set_temperature(19, 1)
 
-    result = await ac.toggle_power(1)
+    result = await ac.set_power("On", 1)
 
     assert result.ok is True
     assert mqtt.sent[-1]["Power"] == "On"
@@ -147,19 +147,50 @@ async def test_power_off_still_sends_ir(storage):
     """Выключение обязано уйти по ИК, даже хотя итоговый power=Off."""
     mqtt = FakeMqtt()
     ac = AirConditioner(storage, mqtt)
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
     mqtt.sent.clear()
 
-    result = await ac.toggle_power(1)
+    result = await ac.set_power("Off", 1)
 
     assert result.ir_sent is True
     assert mqtt.sent[-1]["Power"] == "Off"
 
 
+async def test_power_off_when_already_off_still_sends(storage):
+    """Кнопки идемпотентны: «Выключить» шлёт выключение, даже если бот считает
+    кондиционер выключенным. Так чинится рассинхрон с пультом с первого нажатия."""
+    mqtt = FakeMqtt()
+    ac = AirConditioner(storage, mqtt)
+    assert ac.get_state().power == "Off"
+
+    result = await ac.set_power("Off", 1)
+
+    assert result.ir_sent is True
+    assert mqtt.sent[-1]["Power"] == "Off"
+
+
+async def test_power_on_when_already_on_still_sends(storage):
+    mqtt = FakeMqtt()
+    ac = AirConditioner(storage, mqtt)
+    await ac.set_power("On", 1)
+    mqtt.sent.clear()
+
+    await ac.set_power("On", 1)
+
+    assert len(mqtt.sent) == 1
+    assert mqtt.sent[-1]["Power"] == "On"
+
+
+async def test_set_power_rejects_garbage(storage):
+    ac = AirConditioner(storage, FakeMqtt())
+    with pytest.raises(ValueError):
+        await ac.set_power("Maybe", 1)
+
+
 async def test_step_temperature_moves_by_one(storage):
     mqtt = FakeMqtt()
     ac = AirConditioner(storage, mqtt)
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
     start = ac.get_state().temp
 
     up = await ac.step_temperature(1, 1)
@@ -174,7 +205,7 @@ async def test_step_temperature_moves_by_one(storage):
 async def test_step_temperature_stops_at_upper_limit(storage):
     mqtt = FakeMqtt()
     ac = AirConditioner(storage, mqtt)
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
     await ac.set_temperature(30, 1)
     mqtt.sent.clear()
 
@@ -189,7 +220,7 @@ async def test_step_temperature_stops_at_upper_limit(storage):
 async def test_step_temperature_stops_at_lower_limit(storage):
     mqtt = FakeMqtt()
     ac = AirConditioner(storage, mqtt)
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
     await ac.set_temperature(17, 1)
     mqtt.sent.clear()
 
@@ -217,7 +248,7 @@ async def test_stepping_across_whole_range(storage):
     """От 24 можно дойти до обеих границ и упереться."""
     mqtt = FakeMqtt()
     ac = AirConditioner(storage, mqtt)
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
 
     for _ in range(20):
         await ac.step_temperature(1, 1)
@@ -233,7 +264,7 @@ async def test_custom_range_from_protocol(storage):
     mqtt = FakeMqtt()
     protocol = AcProtocol(vendor="Haier", model="", min_temp=16, max_temp=26)
     ac = AirConditioner(storage, mqtt, protocol)
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
 
     for _ in range(20):
         await ac.step_temperature(-1, 1)
@@ -247,7 +278,7 @@ async def test_custom_range_from_protocol(storage):
 async def test_protocol_shapes_the_payload(storage):
     mqtt = FakeMqtt()
     ac = AirConditioner(storage, mqtt, AcProtocol(vendor="Haier", model="", send_light=False))
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
 
     assert mqtt.sent[-1]["Vendor"] == "Haier"
     assert "Model" not in mqtt.sent[-1]
@@ -257,7 +288,7 @@ async def test_protocol_shapes_the_payload(storage):
 async def test_state_survives_restart(storage):
     mqtt = FakeMqtt()
     ac = AirConditioner(storage, mqtt)
-    await ac.toggle_power(1)
+    await ac.set_power("On", 1)
     await ac.set_temperature(21, 1)
 
     restarted = AirConditioner(StateStorage(storage.path), FakeMqtt())

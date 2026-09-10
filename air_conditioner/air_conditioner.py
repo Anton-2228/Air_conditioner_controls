@@ -43,9 +43,16 @@ class AirConditioner:
         """None — пока не знаем (не пришёл LWT)."""
         return self._mqtt.board_online
 
-    async def toggle_power(self, chat_id: int) -> CommandResult:
-        new_power = POWER_OFF if self._state.power == POWER_ON else POWER_ON
-        return await self._apply({"power": new_power}, chat_id, force_send=True)
+    async def set_power(self, power: str, chat_id: int) -> CommandResult:
+        """Включает или выключает.
+
+        ИК уходит всегда, даже если бот считает, что кондиционер уже в этом
+        состоянии: бот мог разойтись с реальностью (пульт, пропавший кадр),
+        и нажатие нужной кнопки должно это чинить с первого раза.
+        """
+        if power not in (POWER_ON, POWER_OFF):
+            raise ValueError(f"Непонятное состояние питания: {power!r}")
+        return await self._apply({"power": power}, chat_id, force_send=True)
 
     async def set_mode(self, mode: str, chat_id: int) -> CommandResult:
         return await self._apply({"mode": mode}, chat_id, force_send=False)
