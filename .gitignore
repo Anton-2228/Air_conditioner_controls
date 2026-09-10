@@ -1,0 +1,9 @@
+venv/
+.venv/
+**/__pycache__/
+.env
+data/
+mosquitto/config/passwd
+.pytest_cache/
+.ruff_cache/
+.idea/
