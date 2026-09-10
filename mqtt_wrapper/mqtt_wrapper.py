@@ -39,7 +39,6 @@ class MqttWrapper:
         base_topic: str,
         client_id: str,
         ack_timeout: float = 5.0,
-        repeat_delay: float = 0.3,
         reconnect_delay: float = 5.0,
     ) -> None:
         self._host = host
@@ -48,7 +47,6 @@ class MqttWrapper:
         self._password = password
         self._client_id = client_id
         self._ack_timeout = ack_timeout
-        self._repeat_delay = repeat_delay
         self._reconnect_delay = reconnect_delay
 
         self.cmnd_topic = f"cmnd/{base_topic}/IRhvac"
@@ -158,10 +156,7 @@ class MqttWrapper:
             waiter.set_result(True)
 
     async def send_hvac(self, payload: dict) -> bool:
-        """Публикует команду дважды и возвращает, подтвердилась ли первая посылка.
-
-        Дубль безопасен: Gree передаёт полное состояние, а не «переключи».
-        """
+        """Публикует команду и возвращает, подтвердила ли плата отправку."""
         async with self._publish_lock:
             if not self._connected.is_set():
                 self.last_error = "not_connected"
@@ -178,12 +173,6 @@ class MqttWrapper:
             if not await self._publish_once(body):
                 self.last_error = "rejected" if self._rejected else "no_ack"
                 return False
-
-            await asyncio.sleep(self._repeat_delay)
-            if not await self._publish_once(body):
-                # Сигнал ушёл, потерялось только подтверждение дубля.
-                # Переспрашивать не будем, чтобы не сыпать ИК-кадрами.
-                logger.warning("Повторная посылка не подтверждена, команда считается успешной")
 
             self.last_error = None
             return True

@@ -38,7 +38,6 @@ MQTT_PASSWORD = os.getenv("MQTT_PASSWORD", "")
 MQTT_CLIENT_ID = os.getenv("MQTT_CLIENT_ID", "ac_bot")
 TASMOTA_TOPIC = os.getenv("TASMOTA_TOPIC", "tasmota_A3CA74")
 MQTT_ACK_TIMEOUT = float(os.getenv("MQTT_ACK_TIMEOUT", "5.0"))
-MQTT_REPEAT_DELAY = float(os.getenv("MQTT_REPEAT_DELAY", "0.3"))
 MQTT_RECONNECT_DELAY = float(os.getenv("MQTT_RECONNECT_DELAY", "5.0"))
 STATE_FILE_PATH = Path(os.getenv("STATE_FILE_PATH", "data/state.json"))
 TELEGRAM_PROXY = os.getenv("TELEGRAM_PROXY", "").strip()
@@ -78,7 +77,6 @@ mqtt_wrapper = MqttWrapper(
     base_topic=TASMOTA_TOPIC,
     client_id=MQTT_CLIENT_ID,
     ack_timeout=MQTT_ACK_TIMEOUT,
-    repeat_delay=MQTT_REPEAT_DELAY,
     reconnect_delay=MQTT_RECONNECT_DELAY,
 )
 

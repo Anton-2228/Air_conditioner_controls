@@ -87,7 +87,6 @@ def make_wrapper() -> MqttWrapper:
         base_topic="tasmota_TEST",
         client_id="ac_bot_test",
         ack_timeout=0.3,
-        repeat_delay=0.01,
         reconnect_delay=0.01,
     )
 
@@ -123,8 +122,8 @@ async def test_subscribes_to_lwt_and_stat(fake_client):
     await stop(task)
 
 
-async def test_publishes_twice_and_confirms(fake_client):
-    """Каждая команда уходит дважды: ИК-канал односторонний, дубль безопасен."""
+async def test_publishes_once_and_confirms(fake_client):
+    """Каждая команда уходит ровно один раз."""
     wrapper = make_wrapper()
     task = await start(wrapper)
     client = fake_client.instances[0]
@@ -132,12 +131,11 @@ async def test_publishes_twice_and_confirms(fake_client):
     await asyncio.sleep(0.02)
 
     assert await wrapper.send_hvac(PAYLOAD) is True
-    assert len(client.published) == 2
+    assert len(client.published) == 1
     topic, body = client.published[0]
     assert topic == wrapper.cmnd_topic
     assert json.loads(body) == PAYLOAD
     assert " " not in body  # компактный JSON, буфер Tasmota невелик
-    assert client.published[0] == client.published[1]
     assert wrapper.last_error is None
     await stop(task)
 
@@ -152,7 +150,7 @@ async def test_no_ack_gives_failure(fake_client):
 
     assert await wrapper.send_hvac(PAYLOAD) is False
     assert wrapper.last_error == "no_ack"
-    assert len(client.published) == 1  # вторую посылку не делаем, первая не подтвердилась
+    assert len(client.published) == 1
     await stop(task)
 
 
@@ -187,7 +185,7 @@ async def test_wrong_vendor_is_a_rejection_not_an_ack(fake_client):
     started = loop.time()
     assert await wrapper.send_hvac(PAYLOAD) is False
     assert wrapper.last_error == "rejected"
-    assert len(client.published) == 1  # после отказа дубль не шлём
+    assert len(client.published) == 1
     # Отказ приходит сразу — ждать таймаут подтверждения незачем
     assert loop.time() - started < 0.2
     await stop(task)
