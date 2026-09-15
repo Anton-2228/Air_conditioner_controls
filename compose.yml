@@ -13,18 +13,40 @@ services:
       - mosquitto_data:/mosquitto/data
       - mosquitto_log:/mosquitto/log
 
+  boiler:
+    build: ./boiler_service
+    container_name: boiler_api
+    restart: unless-stopped
+    # env_file здесь намеренно нет: сервису розетки незачем видеть токен
+    # Telegram и пароль от брокера. Передаём ровно два нужных значения,
+    # compose подставит их из .env.
+    environment:
+      TUYA_DEVICE_ID: ${TUYA_DEVICE_ID}
+      BOILER_API_TOKEN: ${BOILER_API_TOKEN}
+      TUYA_TOKEN_FILE: /data/token.json
+    volumes:
+      # Не именованный том, а каталог на хосте: token.json кладётся туда
+      # руками после входа по QR-коду, и его должно быть видно снаружи.
+      - ./data/boiler:/data
+    # Порт наружу не публикуется: снаружи к розетке ходить некому,
+    # бот дотягивается по внутренней сети compose.
+
   bot:
     build: .
     container_name: ac_bot
     restart: unless-stopped
     depends_on:
       - mosquitto
+      - boiler
     env_file: .env
     environment:
       # Внутри compose-сети бот ходит к брокеру напрямую, наружу не выходит
       MQTT_HOST: mosquitto
       MQTT_PORT: "1883"
       STATE_FILE_PATH: /data/state.json
+      # Имя сервиса, а не 127.0.0.1: внутри контейнера localhost — это
+      # сам контейнер с ботом. Перекрывает значение из .env.
+      BOILER_API_URL: http://boiler:8000
     volumes:
       - bot_state:/data
 
