@@ -2,7 +2,7 @@ import asyncio
 import logging
 
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery, Message
+from aiogram.types import CallbackQuery
 
 from air_conditioner import MODE_COOL, MODE_HEAT, POWER_ON, AcState, AirConditioner, CommandResult
 from datafiles import (
@@ -78,15 +78,6 @@ def format_status(state: AcState, board_online: bool | None, note: str | None = 
     if note:
         text += f"\n\n{note}"
     return text
-
-
-async def send_menu(target: Message, air_conditioner: AirConditioner) -> None:
-    """Новая панель. Нужна только для /menu и /start — редактировать там нечего."""
-    state = air_conditioner.get_state()
-    await target.answer(
-        format_status(state, air_conditioner.board_online),
-        reply_markup=build_menu_keyboard(state),
-    )
 
 
 async def update_menu(

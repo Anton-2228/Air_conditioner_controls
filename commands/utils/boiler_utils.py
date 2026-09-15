@@ -1,16 +1,19 @@
 import logging
 
 from aiogram.exceptions import TelegramBadRequest
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup
 from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from boiler import STATE_HEATING, STATE_OFF, STATE_READY, Boiler, BoilerError, BoilerStatus
 from datafiles import BOILER_AUTH_MESSAGE, BOILER_MESSAGE, BOILER_UNAVAILABLE_MESSAGE
 
+from .root_utils import add_back_button
+
 logger = logging.getLogger(__name__)
 
 CALLBACK_BOILER_ON = "boiler_on"
 CALLBACK_BOILER_OFF = "boiler_off"
+CALLBACK_BOILER_REFRESH = "boiler_refresh"
 
 STATE_TITLES = {
     STATE_OFF: "🔴 Выключен",
@@ -44,7 +47,12 @@ def build_boiler_keyboard(status: BoilerStatus | None) -> InlineKeyboardMarkup:
         text=_mark(status is not None and not status.on, "🔴 Выключить"),
         callback_data=CALLBACK_BOILER_OFF,
     )
-    builder.adjust(2)
+    # Отдельной строкой: панель не обновляется сама, а бойлер живёт своей
+    # жизнью — термостат отключает ТЭН, отсчитывается таймер, кто-то щёлкает
+    # кнопкой на розетке. «Обновить» — единственный способ это увидеть.
+    builder.button(text="🔄 Обновить", callback_data=CALLBACK_BOILER_REFRESH)
+    add_back_button(builder)
+    builder.adjust(2, 2)
     return builder.as_markup()
 
 
@@ -109,15 +117,6 @@ async def fetch_status(boiler: Boiler) -> tuple[BoilerStatus | None, str | None]
     except BoilerError as exc:
         logger.warning("Не удалось получить состояние бойлера: %s", exc)
         return None, note_for_error(exc)
-
-
-async def send_boiler_menu(target: Message, boiler: Boiler) -> None:
-    """Новая панель. Нужна только для /boiler — редактировать там нечего."""
-    status, note = await fetch_status(boiler)
-    await target.answer(
-        format_boiler_status(status, note),
-        reply_markup=build_boiler_keyboard(status),
-    )
 
 
 async def update_boiler_menu(

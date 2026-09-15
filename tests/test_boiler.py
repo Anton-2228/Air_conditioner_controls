@@ -4,11 +4,13 @@ from boiler import STATE_HEATING, STATE_OFF, STATE_READY, BoilerError, BoilerSta
 from commands.utils.boiler_utils import (
     CALLBACK_BOILER_OFF,
     CALLBACK_BOILER_ON,
+    CALLBACK_BOILER_REFRESH,
     build_boiler_keyboard,
     format_boiler_status,
     format_countdown,
     format_watts,
 )
+from commands.utils.root_utils import CALLBACK_BACK
 
 
 def test_status_parses_api_answer():
@@ -73,10 +75,17 @@ def test_panel_survives_unknown_status():
     assert text.endswith("note")
 
 
-def test_keyboard_always_has_both_buttons():
+def test_keyboard_always_has_all_buttons():
     """Розетку могут переключить кнопкой на корпусе, поэтому кнопки шлют
     конкретное состояние и работают с первого нажатия в любом случае."""
     for status in (None, BoilerStatus(on=True), BoilerStatus(on=False)):
         keyboard = build_boiler_keyboard(status)
         data = [button.callback_data for row in keyboard.inline_keyboard for button in row]
-        assert data == [CALLBACK_BOILER_ON, CALLBACK_BOILER_OFF]
+        assert data == [
+            CALLBACK_BOILER_ON,
+            CALLBACK_BOILER_OFF,
+            CALLBACK_BOILER_REFRESH,
+            CALLBACK_BACK,
+        ]
+        # Питание в первой строке, навигация во второй.
+        assert [len(row) for row in keyboard.inline_keyboard] == [2, 2]

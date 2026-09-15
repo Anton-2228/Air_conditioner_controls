@@ -2,20 +2,22 @@ from air_conditioner import AirConditioner
 from boiler import Boiler
 
 from .Command import Command
+from .Navigate import Navigate
+from .RefreshBoiler import RefreshBoiler
 from .SetBoilerPower import SetBoilerPower
 from .SetMode import SetMode
 from .SetPower import SetPower
 from .SetTemperature import SetTemperature
-from .ShowBoiler import ShowBoiler
 from .ShowMenu import ShowMenu
 
 __all__ = [
     "Command",
+    "Navigate",
+    "RefreshBoiler",
     "SetBoilerPower",
     "SetMode",
     "SetPower",
     "SetTemperature",
-    "ShowBoiler",
     "ShowMenu",
     "get_commands",
 ]
@@ -28,20 +30,21 @@ def get_commands(
 ) -> dict[str, Command]:
     """Реестр команд.
 
-    SetPower, SetMode, SetTemperature и SetBoilerPower регистрируют свои
-    callback-хендлеры в конструкторе, поэтому создать их нужно все, даже
-    те, что не вызываются по строковому ключу.
+    Все, кроме ShowMenu, регистрируют свои callback-хендлеры в конструкторе,
+    поэтому создать их нужно все, даже те, что не вызываются по строковому
+    ключу: в бота ведёт одна команда /menu, дальше — только кнопки.
 
-    boiler=None — бойлер не настроен: его команды не создаются, и кнопок,
-    которые всё равно некуда отправить, в чате не появляется.
+    boiler=None — бойлер не настроен: его кнопки и хендлеры не создаются,
+    в корневом меню остаётся один кондиционер.
     """
     commands: dict[str, Command] = {
-        "menu": ShowMenu(command_manager, air_conditioner),
+        "menu": ShowMenu(command_manager, air_conditioner, boiler),
+        "navigate": Navigate(command_manager, air_conditioner, boiler),
         "setPower": SetPower(command_manager, air_conditioner),
         "setMode": SetMode(command_manager, air_conditioner),
         "setTemperature": SetTemperature(command_manager, air_conditioner),
     }
     if boiler is not None:
-        commands["boiler"] = ShowBoiler(command_manager, boiler)
         commands["setBoilerPower"] = SetBoilerPower(command_manager, boiler)
+        commands["refreshBoiler"] = RefreshBoiler(command_manager, boiler)
     return commands

@@ -27,19 +27,6 @@ async def menu(
     await commandManager.launchCommand("menu", message, state, command)
 
 
-# Хендлер появляется, только если бойлер настроен: иначе /boiler
-# должен попасть в catch-all, а не отвечать «что-то пошло не так».
-if boiler is not None:
-
-    @router.message(Command("boiler"))
-    async def boiler_menu(
-        message: Message,
-        state: FSMContext,
-        command: CommandObject | None = None,
-    ) -> None:
-        await commandManager.launchCommand("boiler", message, state, command)
-
-
 # Catch-all регистрируется последним: он перехватывает всё, что не разобрали выше.
 @router.message()
 async def unclear_input(

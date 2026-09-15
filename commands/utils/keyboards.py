@@ -3,6 +3,8 @@ from aiogram.utils.keyboard import InlineKeyboardBuilder
 
 from air_conditioner import MODE_COOL, MODE_HEAT, POWER_OFF, POWER_ON, AcState
 
+from .root_utils import add_back_button
+
 CALLBACK_POWER_ON = "ac_power_on"
 CALLBACK_POWER_OFF = "ac_power_off"
 CALLBACK_MODE_COOL = "ac_mode_cool"
@@ -58,5 +60,6 @@ def build_menu_keyboard(state: AcState) -> InlineKeyboardMarkup:
     # поэтому у неё отдельный колбэк, который ничего не делает.
     builder.button(text=f"{state.temp}°C", callback_data=CALLBACK_NOOP)
     builder.button(text="🔼", callback_data=CALLBACK_TEMP_UP)
-    builder.adjust(2, 2, 3)
+    add_back_button(builder)
+    builder.adjust(2, 2, 3, 1)
     return builder.as_markup()

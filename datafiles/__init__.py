@@ -7,6 +7,7 @@ def _read(name: str) -> str:
     return (_MESSAGES / name).read_text(encoding="utf-8").strip()
 
 
+ROOT_MESSAGE = _read("root_message.txt")
 MENU_MESSAGE = _read("menu_message.txt")
 BOILER_MESSAGE = _read("boiler_message.txt")
 BOILER_PENDING_MESSAGE = _read("boiler_pending_message.txt")

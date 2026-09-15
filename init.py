@@ -106,12 +106,11 @@ else:
     boiler = None
     logger.warning("BOILER_API_URL/BOILER_API_TOKEN не заданы: команда /boiler выключена")
 
+# Команда одна на оба устройства: дальше пользователь ходит кнопками.
 COMMANDS = [
-    BotCommand(command="menu", description="Управление кондиционером"),
-    BotCommand(command="start", description="Управление кондиционером"),
+    BotCommand(command="menu", description="Кондиционер и бойлер"),
+    BotCommand(command="start", description="Кондиционер и бойлер"),
 ]
-if boiler is not None:
-    COMMANDS.append(BotCommand(command="boiler", description="Управление бойлером"))
 
 __all__ = [
     "AC_PROTOCOL",
