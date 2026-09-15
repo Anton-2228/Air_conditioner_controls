@@ -3,13 +3,6 @@ from dataclasses import dataclass
 
 logger = logging.getLogger(__name__)
 
-# Состояния для интерфейса. «Питание подано» и «бойлер греет» — разные вещи:
-# встроенный термостат снимает нагрузку, когда вода уже горячая, и именно
-# это отличает «греется» от «вода готова».
-STATE_OFF = "off"
-STATE_HEATING = "heating"
-STATE_READY = "ready"
-
 
 class BoilerError(Exception):
     """Не удалось выполнить запрос к API бойлера.
@@ -58,15 +51,10 @@ class BoilerStatus:
     volts: float = 0.0
     amps: float = 0.0
     heating: bool = False
-    """ТЭН реально потребляет мощность."""
+    """ТЭН реально потребляет мощность. В панели не показывается, но API
+    его отдаёт, и по логам видно, греется бойлер или уже нагрел воду."""
     countdown: int = 0
     """Секунд до автовыключения по таймеру розетки. 0 — таймер не активен."""
-
-    @property
-    def state(self) -> str:
-        if not self.on:
-            return STATE_OFF
-        return STATE_HEATING if self.heating else STATE_READY
 
     @classmethod
     def from_dict(cls, raw: dict) -> "BoilerStatus":

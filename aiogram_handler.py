@@ -9,12 +9,12 @@ from aiogram.types import ErrorEvent, Message
 from command_manager import CommandManager
 from commands import get_commands
 from datafiles import INTERNAL_ERROR_MESSAGE, UNCLEAR_INPUT_MESSAGE
-from init import COMMANDS, air_conditioner, boiler, bot, dp, mqtt_wrapper, router
+from init import COMMANDS, air_conditioner, boiler, bot, delayed_start, dp, mqtt_wrapper, router
 
 logger = logging.getLogger(__name__)
 
 commandManager = CommandManager(router=router, bot=bot)
-commandManager.addCommands(get_commands(commandManager, air_conditioner, boiler))
+commandManager.addCommands(get_commands(commandManager, air_conditioner, boiler, delayed_start))
 
 
 @router.message(Command("start"))

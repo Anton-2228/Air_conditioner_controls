@@ -21,4 +21,7 @@ class ShowMenu(Command):
         state: FSMContext,
         command: CommandObject | None = None,
     ) -> None:
+        # /menu — способ выбраться откуда угодно, в том числе из
+        # недонастроенного таймера, поэтому диалог сбрасываем.
+        await state.clear()
         await send_root_menu(message, self.with_boiler)

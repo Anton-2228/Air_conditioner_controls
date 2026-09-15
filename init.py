@@ -22,7 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Импорты ниже идут после load_dotenv и настройки логирования намеренно.
 from air_conditioner import AcProtocol, AirConditioner, StateStorage  # noqa: E402
-from boiler import Boiler  # noqa: E402
+from boiler import Boiler, DelayedStart  # noqa: E402
 from middlewares import WhitelistMiddleware  # noqa: E402
 from mqtt_wrapper import MqttWrapper  # noqa: E402
 
@@ -102,9 +102,11 @@ if BOILER_API_URL and BOILER_API_TOKEN:
         request_timeout=BOILER_REQUEST_TIMEOUT,
         sync_delay=BOILER_SYNC_DELAY,
     )
+    delayed_start = DelayedStart(boiler)
 else:
     boiler = None
-    logger.warning("BOILER_API_URL/BOILER_API_TOKEN не заданы: команда /boiler выключена")
+    delayed_start = None
+    logger.warning("BOILER_API_URL/BOILER_API_TOKEN не заданы: бойлер выключен")
 
 # Команда одна на оба устройства: дальше пользователь ходит кнопками.
 COMMANDS = [
@@ -119,6 +121,7 @@ __all__ = [
     "air_conditioner",
     "boiler",
     "bot",
+    "delayed_start",
     "dp",
     "mqtt_wrapper",
     "router",

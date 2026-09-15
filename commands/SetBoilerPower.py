@@ -4,7 +4,7 @@ from aiogram import F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery
 
-from boiler import Boiler, BoilerError
+from boiler import Boiler, BoilerError, DelayedStart
 from datafiles import BOILER_PENDING_MESSAGE
 
 from .Command import Command
@@ -22,9 +22,10 @@ logger = logging.getLogger(__name__)
 class SetBoilerPower(Command):
     """Кнопки «Включить» и «Выключить» под панелью бойлера."""
 
-    def __init__(self, command_manager, boiler: Boiler) -> None:
+    def __init__(self, command_manager, boiler: Boiler, delayed_start: DelayedStart) -> None:
         super().__init__(command_manager)
         self.boiler = boiler
+        self.delayed_start = delayed_start
         command_manager.router.callback_query.register(
             self.set_power, F.data.in_({CALLBACK_BOILER_ON, CALLBACK_BOILER_OFF})
         )
@@ -34,9 +35,13 @@ class SetBoilerPower(Command):
         if callback.message is None:
             return
         turn_on = callback.data == CALLBACK_BOILER_ON
+        # Ручное нажатие отменяет всё запланированное: и отложенный запуск
+        # в боте, и отсчёт в самой розетке. Иначе таймер, о котором человек
+        # уже забыл, позже переключил бы бойлер за его спиной.
+        cancelled = self.delayed_start.cancel()
         try:
             if turn_on:
-                # Без таймера: пока это осознанный выбор из двух кнопок.
+                # minutes=0 — это ещё и сброс отсчёта на розетке.
                 await self.boiler.turn_on()
             else:
                 await self.boiler.turn_off()
@@ -55,4 +60,5 @@ class SetBoilerPower(Command):
             logger.warning("Не удалось перечитать состояние бойлера: %s", exc)
             await update_boiler_menu(callback, None, note_for_error(exc))
             return
-        await update_boiler_menu(callback, status)
+        note = "⏱ Таймер отменён" if cancelled else None
+        await update_boiler_menu(callback, status, note)
