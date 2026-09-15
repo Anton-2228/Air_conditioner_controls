@@ -1,3 +1,6 @@
 fastapi==0.141.1
 uvicorn==0.53.0
 tuya-device-sharing-sdk==0.2.15
+# Ставится явно: sdk импортирует cryptography (AESGCM в customerapi),
+# но в зависимостях его не объявляет — в чистом образе импорт падает.
+cryptography==50.0.1
