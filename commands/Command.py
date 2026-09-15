@@ -8,7 +8,9 @@ from air_conditioner import AirConditioner
 class Command:
     """Базовый класс команды."""
 
-    def __init__(self, command_manager, air_conditioner: AirConditioner) -> None:
+    def __init__(self, command_manager, air_conditioner: AirConditioner | None = None) -> None:
+        # air_conditioner необязателен: команды бойлера ходят к своему
+        # устройству и про кондиционер ничего не знают.
         self.commandManager = command_manager
         self.air_conditioner: AirConditioner = air_conditioner
 

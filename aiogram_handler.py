@@ -9,12 +9,12 @@ from aiogram.types import ErrorEvent, Message
 from command_manager import CommandManager
 from commands import get_commands
 from datafiles import INTERNAL_ERROR_MESSAGE, UNCLEAR_INPUT_MESSAGE
-from init import COMMANDS, air_conditioner, bot, dp, mqtt_wrapper, router
+from init import COMMANDS, air_conditioner, boiler, bot, dp, mqtt_wrapper, router
 
 logger = logging.getLogger(__name__)
 
 commandManager = CommandManager(router=router, bot=bot)
-commandManager.addCommands(get_commands(commandManager, air_conditioner))
+commandManager.addCommands(get_commands(commandManager, air_conditioner, boiler))
 
 
 @router.message(Command("start"))
@@ -25,6 +25,19 @@ async def menu(
     command: CommandObject | None = None,
 ) -> None:
     await commandManager.launchCommand("menu", message, state, command)
+
+
+# Хендлер появляется, только если бойлер настроен: иначе /boiler
+# должен попасть в catch-all, а не отвечать «что-то пошло не так».
+if boiler is not None:
+
+    @router.message(Command("boiler"))
+    async def boiler_menu(
+        message: Message,
+        state: FSMContext,
+        command: CommandObject | None = None,
+    ) -> None:
+        await commandManager.launchCommand("boiler", message, state, command)
 
 
 # Catch-all регистрируется последним: он перехватывает всё, что не разобрали выше.
@@ -67,7 +80,13 @@ async def start_polling() -> None:
 
 
 async def start() -> None:
-    await asyncio.gather(start_polling(), mqtt_wrapper.run())
+    try:
+        await asyncio.gather(start_polling(), mqtt_wrapper.run())
+    finally:
+        # HTTP-сессию бойлера закрываем сами: aiohttp иначе ругается
+        # на незакрытую сессию при остановке контейнера.
+        if boiler is not None:
+            await boiler.close()
 
 
 if __name__ == "__main__":

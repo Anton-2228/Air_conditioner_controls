@@ -1,3 +1,4 @@
+import logging
 import os
 from pathlib import Path
 
@@ -17,8 +18,11 @@ load_dotenv(dotenv_path)
 
 setup_logging(os.getenv("LOG_LEVEL", "INFO"))
 
+logger = logging.getLogger(__name__)
+
 # Импорты ниже идут после load_dotenv и настройки логирования намеренно.
 from air_conditioner import AcProtocol, AirConditioner, StateStorage  # noqa: E402
+from boiler import Boiler  # noqa: E402
 from middlewares import WhitelistMiddleware  # noqa: E402
 from mqtt_wrapper import MqttWrapper  # noqa: E402
 
@@ -41,6 +45,12 @@ MQTT_ACK_TIMEOUT = float(os.getenv("MQTT_ACK_TIMEOUT", "5.0"))
 MQTT_RECONNECT_DELAY = float(os.getenv("MQTT_RECONNECT_DELAY", "5.0"))
 STATE_FILE_PATH = Path(os.getenv("STATE_FILE_PATH", "data/state.json"))
 TELEGRAM_PROXY = os.getenv("TELEGRAM_PROXY", "").strip()
+
+# Бойлер живёт за отдельным HTTP API на VPS и к MQTT отношения не имеет.
+BOILER_API_URL = os.getenv("BOILER_API_URL", "").strip()
+BOILER_API_TOKEN = os.getenv("BOILER_API_TOKEN", "").strip()
+BOILER_REQUEST_TIMEOUT = float(os.getenv("BOILER_REQUEST_TIMEOUT", "10.0"))
+BOILER_SYNC_DELAY = float(os.getenv("BOILER_SYNC_DELAY", "2.0"))
 
 # Протокол кондиционера. Меняется при переезде на другой кондиционер:
 # другой пульт — другой вендор, иногда другой диапазон температур.
@@ -82,16 +92,33 @@ mqtt_wrapper = MqttWrapper(
 
 air_conditioner = AirConditioner(StateStorage(STATE_FILE_PATH), mqtt_wrapper, AC_PROTOCOL)
 
+# Бойлер необязателен: без адреса и токена бот поднимается как раньше,
+# только без команды /boiler. Ронять из-за него управление кондиционером
+# было бы неправильно — это независимые устройства.
+if BOILER_API_URL and BOILER_API_TOKEN:
+    boiler = Boiler(
+        base_url=BOILER_API_URL,
+        token=BOILER_API_TOKEN,
+        request_timeout=BOILER_REQUEST_TIMEOUT,
+        sync_delay=BOILER_SYNC_DELAY,
+    )
+else:
+    boiler = None
+    logger.warning("BOILER_API_URL/BOILER_API_TOKEN не заданы: команда /boiler выключена")
+
 COMMANDS = [
     BotCommand(command="menu", description="Управление кондиционером"),
     BotCommand(command="start", description="Управление кондиционером"),
 ]
+if boiler is not None:
+    COMMANDS.append(BotCommand(command="boiler", description="Управление бойлером"))
 
 __all__ = [
     "AC_PROTOCOL",
     "ALLOWED_CHAT_IDS",
     "COMMANDS",
     "air_conditioner",
+    "boiler",
     "bot",
     "dp",
     "mqtt_wrapper",

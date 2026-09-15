@@ -8,6 +8,10 @@ def _read(name: str) -> str:
 
 
 MENU_MESSAGE = _read("menu_message.txt")
+BOILER_MESSAGE = _read("boiler_message.txt")
+BOILER_PENDING_MESSAGE = _read("boiler_pending_message.txt")
+BOILER_UNAVAILABLE_MESSAGE = _read("boiler_unavailable_message.txt")
+BOILER_AUTH_MESSAGE = _read("boiler_auth_message.txt")
 BOARD_OFFLINE_MESSAGE = _read("board_offline_message.txt")
 COMMAND_REJECTED_MESSAGE = _read("command_rejected_message.txt")
 SAVED_ONLY_MESSAGE = _read("saved_only_message.txt")
