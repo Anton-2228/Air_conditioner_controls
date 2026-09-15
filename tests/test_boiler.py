@@ -7,6 +7,7 @@ from commands.utils.boiler_utils import (
     build_boiler_keyboard,
     format_boiler_status,
     format_countdown,
+    format_watts,
 )
 
 
@@ -47,12 +48,23 @@ def test_countdown_reads_like_human_time():
     assert format_countdown(20) == "выключится через 1 мин"
 
 
-def test_panel_shows_watts_only_while_heating():
+def test_panel_shows_watts_in_every_state():
     heating = format_boiler_status(BoilerStatus(on=True, heating=True, watts=1498.2))
     assert "1498 Вт" in heating
-    ready = format_boiler_status(BoilerStatus(on=True, heating=False, watts=0.0))
-    assert "Вт" not in ready
+    # Вода готова: ТЭН отключён термостатом, но электроника под напряжением.
+    ready = format_boiler_status(BoilerStatus(on=True, heating=False, watts=10.7))
+    assert "10,7 Вт" in ready
     assert "Вода готова" in ready
+    assert "0 Вт" in format_boiler_status(BoilerStatus(on=False, watts=0.0))
+
+
+def test_watts_keep_tenths_only_on_small_numbers():
+    # На малых числах округление до целого стёрло бы разницу между
+    # «стоит под напряжением» и «выключен».
+    assert format_watts(10.7) == "10,7 Вт"
+    assert format_watts(0.2) == "0,2 Вт"
+    assert format_watts(0.0) == "0 Вт"
+    assert format_watts(1498.2) == "1498 Вт"
 
 
 def test_panel_survives_unknown_status():

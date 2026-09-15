@@ -48,6 +48,20 @@ def build_boiler_keyboard(status: BoilerStatus | None) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
+def format_watts(watts: float) -> str:
+    """Мощность для панели.
+
+    Десятые доли важны только на малых числах: 10,7 Вт — это электроника
+    бойлера под напряжением, и округление до 11 Вт стёрло бы разницу.
+    В нагреве там полтора киловатта, и дробная часть только мешает.
+    """
+    if watts <= 0:
+        return "0 Вт"
+    if watts < 100:
+        return f"{watts:.1f} Вт".replace(".", ",")
+    return f"{watts:.0f} Вт"
+
+
 def format_countdown(seconds: int) -> str:
     """Секунды в «1 ч 20 мин». 0 — таймер не активен."""
     if seconds <= 0:
@@ -74,9 +88,7 @@ def format_boiler_status(status: BoilerStatus | None, note: str | None = None) -
     else:
         text = BOILER_MESSAGE.format(
             state=STATE_TITLES.get(status.state, status.state),
-            # Ватты интересны, только когда идёт нагрев: в остальное время
-            # это ноль, который ничего не говорит.
-            power=f"{status.watts:.0f} Вт" if status.heating else NO_VALUE,
+            power=format_watts(status.watts),
             timer=format_countdown(status.countdown),
         )
     if note:
